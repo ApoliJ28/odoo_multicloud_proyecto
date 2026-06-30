@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odoo-deployment
+  namespace: default
+  labels:
+    app: odoo
+spec:
+  replicas: 2 # Usamos 2 réplicas para demostrar alta disponibilidad
+  selector:
+    matchLabels:
+      app: odoo
+  template:
+    metadata:
+      labels:
+        app: odoo
+    spec:
+      containers:
+      - name: odoo-app
+        # La imagen será reemplazada dinámicamente por Jenkins en cada despliegue
+        image: REPLACE_IMAGE_TAG 
+        ports:
+        - containerPort: 8069
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        env:
+        # Extraemos las credenciales de un Secreto de K8s que será gestionado por el proveedor cloud
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: odoo-db-secrets
+              key: db_host
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: odoo-db-secrets
+              key: db_user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: odoo-db-secrets
+              key: db_password
+        - name: ODOO_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: odoo-db-secrets
+              key: admin_password
+  
