@@ -36,3 +36,20 @@ variable "client_secret" {
   type        = string
   sensitive   = true # Evita que imprima el valor en los logs de Terraform
 }
+
+variable "db_user" {
+  description = "Usuario de la base de datos de Odoo"
+  type        = string
+}
+
+variable "db_password" {
+  description = "Contraseña de la base de datos de Odoo"
+  type        = string
+  sensitive   = true
+}
+
+variable "admin_password" {
+  description = "Contraseña de administrador de Odoo"
+  type        = string
+  sensitive   = true
+}

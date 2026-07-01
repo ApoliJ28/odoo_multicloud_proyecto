@@ -17,6 +17,9 @@ module "eks" {
 
 module "services" {
   source = "./modules/services"
+  db_user             = var.db_user
+  db_password         = var.db_password
+  admin_password      = var.admin_password
 }
 module "jenkins" {
   source           = "./modules/jenkins"

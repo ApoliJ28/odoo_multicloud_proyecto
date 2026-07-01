@@ -24,3 +24,20 @@ variable "session_token" {
     description = "AWS session token"
     type        = string
 }
+
+variable "db_user" {
+  description = "Usuario de la base de datos de Odoo"
+  type        = string
+}
+
+variable "db_password" {
+  description = "Contraseña de la base de datos de Odoo"
+  type        = string
+  sensitive   = true
+}
+
+variable "admin_password" {
+  description = "Contraseña de administrador de Odoo"
+  type        = string
+  sensitive   = true
+}

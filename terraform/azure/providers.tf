@@ -8,7 +8,7 @@ terraform {
   }
   # Configuración del estado remoto para Azure
   backend "azurerm" {
-    resource_group_name  = "odoo-multicloud-terraform-state-rg"
+    resource_group_name  = "odoo-multicloud-terraform-state-rg-unir"
     storage_account_name = "odoo-statestorage"
     container_name       = "odoo-state"
     key                  = "azure/terraform.tfstate"

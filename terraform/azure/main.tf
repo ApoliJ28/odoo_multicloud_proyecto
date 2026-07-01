@@ -26,4 +26,7 @@ module "services" {
   location            = azurerm_resource_group.main.location
   tenant_id           = data.azurerm_client_config.current.tenant_id
   object_id           = data.azurerm_client_config.current.object_id
+  db_user             = var.db_user
+  db_password         = var.db_password
+  admin_password      = var.admin_password
 }

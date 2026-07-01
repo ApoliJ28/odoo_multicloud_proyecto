@@ -21,12 +21,23 @@ resource "azurerm_key_vault" "kv" {
   access_policy {
     tenant_id = var.tenant_id
     object_id = var.object_id
-    secret_permissions = ["Get", "List", "Set", "Delete"]
+    secret_permissions = ["Get", "List", "Set", "Delete", "Purge"]
   }
 }
 
 resource "azurerm_key_vault_secret" "odoo_db_credentials" {
   name         = "odoo-db-credentials"
-  value        = "{\"placeholder\":\"se-inyectara-desde-jenkins\"}"
   key_vault_id = azurerm_key_vault.kv.id
+  
+  # Aquí construimos el JSON dinámicamente tomando los valores de tus variables
+  value = jsonencode({
+    db_host        = "odoo-db-service"
+    db_user        = var.db_user
+    db_password    = var.db_password
+    admin_password = var.admin_password
+  })
+
+  # Esto garantiza que Terraform no intente guardar el secreto 
+  # antes de que la bóveda termine de asignarte los permisos
+  depends_on = [azurerm_key_vault.kv]
 }
