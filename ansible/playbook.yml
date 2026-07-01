@@ -1,7 +1,7 @@
 ---
 - name: Aprovisionamiento del Orquestador Jenkins
   hosts: jenkins_server
-  become: yes # Ejecutar con privilegios de sudo
+  become: true # Ejecutar con privilegios de sudo
 
   vars_files:
     - secrets.yml
