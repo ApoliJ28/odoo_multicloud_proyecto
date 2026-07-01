@@ -45,7 +45,7 @@ echo "Despliegue multicloud completado con éxito!"
 echo "🌐 Interfaz de Jenkins disponible en: http://$JENKINS_IP:8080"
 echo "==================================================="
 
-echo "Extrayendo URLs dinámicas de Terraform..."
+echo "5. Extrayendo URLs dinámicas de Terraform..."
 # Capturamos las salidas exactas de AWS y Azure
 AWS_ECR_URL=$(cd terraform/aws && terraform output -raw ecr_repository_url)
 AZURE_ACR_URL=$(cd terraform/azure && terraform output -raw acr_login_server)

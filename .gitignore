@@ -1,2 +1,6 @@
 *.tfvars
 ansible/secrets.yml
+terraform/aws/.terraform
+terraform/azure/.terraform
+variables_entorno_export.txt
+*.terraform.lock.*
