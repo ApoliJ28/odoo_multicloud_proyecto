@@ -18,3 +18,9 @@ module "eks" {
 module "services" {
   source = "./modules/services"
 }
+module "jenkins" {
+  source           = "./modules/jenkins"
+  vpc_id           = module.vpc.vpc_id
+  # Colocamos la instancia en la primera subred pública para que tenga salida a internet
+  public_subnet_id = module.vpc.public_subnets[0] 
+}
