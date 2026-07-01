@@ -3,14 +3,16 @@ module "vpc" {
   vpc_cidr = var.vpc_cidr
 }
 
-module "iam" {
-  source = "./modules/iam"
-}
+# En AWS Academy da error al crear los roles de IAM, por lo que se comenta este módulo y se coloca el rol de aws academy (labrol).
+
+# module "iam" {
+#   source = "./modules/iam"
+# }
 
 module "eks" {
   source             = "./modules/eks"
-  cluster_role_arn   = module.iam.eks_cluster_role_arn
-  node_role_arn      = module.iam.eks_node_role_arn
+  cluster_role_arn   = "arn:aws:iam::811180737155:role/LabRole" #Rol de IAM para el cluster EKS, si no colocar la variable que viene de iam.
+  node_role_arn      = "arn:aws:iam::811180737155:role/LabRole" #Rol de IAM para los nodos del cluster EKS si no colocar la variable que viene de iam.
   public_subnet_ids  = module.vpc.public_subnets
   private_subnet_ids = module.vpc.private_subnets
 }
