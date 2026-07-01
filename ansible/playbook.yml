@@ -1,0 +1,137 @@
+---
+- name: Aprovisionamiento del Orquestador Jenkins
+  hosts: jenkins_server
+  become: yes # Ejecutar con privilegios de sudo
+
+  vars_files:
+    - secrets.yml
+
+  tasks:
+
+    - name: Actualizar la caché de APT
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instalar dependencias básicas y Java 
+      apt:
+        name: 
+          - wget
+          - curl
+          - git
+          - openjdk-17-jre
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
+        state: present
+
+    # Instalación de Docker
+    # ==========================================
+    - name: Agregar la clave GPG oficial de Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Agregar el repositorio de Docker
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable
+        state: present
+
+    - name: Instalar Docker CE
+      apt:
+        name: 
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+
+    # Instalacion de Jenkins
+    # ==========================================
+    - name: Agregar la clave GPG oficial de Jenkins
+      apt_key:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        state: present
+
+    - name: Agregar el repositorio de Jenkins
+      apt_repository:
+        repo: deb https://pkg.jenkins.io/debian-stable binary/
+        state: present
+
+    - name: Instalar Jenkins
+      apt:
+        name: jenkins
+        state: present
+
+    - name: Asegurar que Jenkins y Docker inicien con el sistema
+      systemd:
+        name: "{{ item }}"
+        enabled: yes
+        state: started
+      loop:
+        - docker
+        - jenkins
+
+    - name: Agregar el usuario 'jenkins' al grupo 'docker'
+      user:
+        name: jenkins
+        groups: docker
+        append: yes
+      notify: Restart Jenkins
+  
+    # Configuración de Jenkins
+    # ==========================================
+  
+    - name: Desactivar el asistente de configuración inicial (Setup Wizard)
+      lineinfile:
+        path: /lib/systemd/system/jenkins.service
+        regexp: '^Environment="JAVA_OPTS='
+        line: 'Environment="JAVA_OPTS=-Djava.awt.headless=true -Djenkins.install.runSetupWizard=false"'
+      notify: Restart Jenkins
+
+    - name: Crear directorio para scripts de inicialización (Groovy)
+      file:
+        path: /var/lib/jenkins/init.groovy.d
+        state: directory
+        owner: jenkins
+        group: jenkins
+        mode: '0755'
+
+    - name: Inyectar script Groovy para crear el administrador automáticamente
+      copy:
+        dest: /var/lib/jenkins/init.groovy.d/basic-security.groovy
+        owner: jenkins
+        group: jenkins
+        mode: '0644'
+        content: |
+          import jenkins.model.*
+          import hudson.security.*
+          def instance = Jenkins.getInstance()
+          def hudsonRealm = new HudsonPrivateSecurityRealm(false)
+          hudsonRealm.createAccount("{{jenkins_admin_user}}", "{{ jenkins_admin_password }}") // ¡Cambia esta contraseña!
+          instance.setSecurityRealm(hudsonRealm)
+          def strategy = new FullControlOnceLoggedInAuthorizationStrategy()
+          strategy.setAllowAnonymousRead(false)
+          instance.setAuthorizationStrategy(strategy)
+          instance.save()
+      notify: Restart Jenkins
+
+    - name: Descargar Jenkins CLI (Herramienta de línea de comandos)
+      get_url:
+        url: http://localhost:8080/jnlpJars/jenkins-cli.jar
+        dest: /tmp/jenkins-cli.jar
+      retries: 5
+      delay: 10
+      register: result
+      until: result is success
+
+    - name: Instalar plugins esenciales para el pipeline multicloud
+      shell: |
+        java -jar /tmp/jenkins-cli.jar -auth {{jenkins_admin_user}}:{{ jenkins_admin_password }} -s http://localhost:8080/ install-plugin git docker-workflow aws-credentials azure-credentials kubernetes-cli configuration-as-code workflow-aggregator -deploy
+      notify: Restart Jenkins
+
+  handlers:
+    - name: Restart Jenkins
+      systemd:
+        name: jenkins
+        state: restarted
+  
