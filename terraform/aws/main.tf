@@ -1,6 +1,7 @@
 module "vpc" {
   source   = "./modules/vpc"
   vpc_cidr = var.vpc_cidr
+  nombre_proyecto = var.nombre_proyecto
 }
 
 # En AWS Academy da error al crear los roles de IAM, por lo que se comenta este módulo y se coloca el rol de aws academy (labrol).

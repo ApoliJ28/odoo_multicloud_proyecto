@@ -4,6 +4,12 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "nombre_proyecto" {
+  description = "Nombre del proyecto"
+  type        = string
+  default     = "odoo-multicloud-terraform"
+}
+
 variable "vpc_cidr" {
   description = "Rango CIDR para la VPC"
   type        = string

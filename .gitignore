@@ -6,3 +6,4 @@ errored.tfstate
 *.tfvars
 ansible/secrets.yml
 variables_entorno_export.txt
+jenkins_key.pem
