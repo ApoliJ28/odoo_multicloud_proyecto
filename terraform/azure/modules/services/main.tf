@@ -9,7 +9,7 @@ resource "azurerm_container_registry" "acr" {
 
 resource "azurerm_key_vault" "kv" {
   # El nombre de Key Vault debe ser globalmente único
-  name                        = "odoo-kv" 
+  name                        = "odoo-kv-unir-proyecto" 
   location                    = var.location
   resource_group_name         = var.resource_group_name
   enabled_for_disk_encryption = true
