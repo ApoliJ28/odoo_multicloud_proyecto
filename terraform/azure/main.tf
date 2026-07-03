@@ -11,13 +11,14 @@ module "vnet" {
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   vnet_address_space  = var.vnet_address_space
+  nombre_proyecto     = var.nombre_proyecto
 }
 
 module "aks" {
   source              = "./modules/aks"
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
-  subnet_id           = module.vnet.aks_subnet_id
+  subnet_private_ids   = module.vnet.private_subnets_ids
 }
 
 module "services" {

@@ -53,3 +53,9 @@ variable "admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "nombre_proyecto" {
+  description = "Nombre del proyecto"
+  type        = string
+  default     = "odoo-multicloud-terraform"
+}

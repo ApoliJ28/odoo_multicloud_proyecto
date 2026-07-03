@@ -1,137 +1,117 @@
 ---
-- name: Aprovisionamiento del Orquestador Jenkins
+- name: Aprovisionamiento del Orquestador Jenkins (Docker + Admin Auth)
   hosts: jenkins_server
   become: true # Ejecutar con privilegios de sudo
 
+  # 1. CARGAMOS TUS SECRETOS
   vars_files:
     - secrets.yml
 
   tasks:
-
-    - name: Actualizar la caché de APT
-      apt:
-        update_cache: yes
-        cache_valid_time: 3600
-
-    - name: Instalar dependencias básicas y Java 
-      apt:
-        name: 
-          - wget
-          - curl
-          - git
-          - openjdk-17-jre
-          - apt-transport-https
-          - ca-certificates
-          - software-properties-common
-        state: present
-
-    # Instalación de Docker
+    # 2. SALVAVIDAS: Memoria Virtual
     # ==========================================
-    - name: Agregar la clave GPG oficial de Docker
+    - name: Crear y activar un archivo Swap de 2GB
+      shell: |
+        if [ ! -f /swapfile ]; then
+          fallocate -l 2G /swapfile
+          chmod 600 /swapfile
+          mkswap /swapfile
+          swapon /swapfile
+          echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        fi
+
+    # 3. INSTALACIÓN DE DOCKER Y COMPOSE
+    # ==========================================
+    - name: Actualizar caché y paquetes básicos
+      apt:
+        name: [wget, curl, git, apt-transport-https, ca-certificates, software-properties-common]
+        state: present
+        update_cache: yes
+
+    - name: Agregar clave GPG de Docker
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
         state: present
 
-    - name: Agregar el repositorio de Docker
+    - name: Agregar repositorio de Docker
       apt_repository:
-        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu jammy stable"
         state: present
 
-    - name: Instalar Docker CE
+    - name: Instalar Docker CE y Docker Compose Plugin
       apt:
-        name: 
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
+        name: [docker-ce, docker-ce-cli, containerd.io, docker-compose-plugin]
         state: present
+        update_cache: yes
 
-    # Instalacion de Jenkins
-    # ==========================================
-    - name: Agregar la clave GPG oficial de Jenkins
-      apt_key:
-        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
-        state: present
-
-    - name: Agregar el repositorio de Jenkins
-      apt_repository:
-        repo: deb https://pkg.jenkins.io/debian-stable binary/
-        state: present
-
-    - name: Instalar Jenkins
-      apt:
-        name: jenkins
-        state: present
-
-    - name: Asegurar que Jenkins y Docker inicien con el sistema
+    - name: Asegurar que Docker esté ejecutándose
       systemd:
-        name: "{{ item }}"
-        enabled: yes
+        name: docker
         state: started
-      loop:
-        - docker
-        - jenkins
+        enabled: yes
 
-    - name: Agregar el usuario 'jenkins' al grupo 'docker'
-      user:
-        name: jenkins
-        groups: docker
-        append: yes
-      notify: Restart Jenkins
-  
-    # Configuración de Jenkins
+    # 4. PREPARACIÓN DE DIRECTORIOS Y SCRIPT DE USUARIO
     # ==========================================
-  
-    - name: Desactivar el asistente de configuración inicial (Setup Wizard)
-      lineinfile:
-        path: /lib/systemd/system/jenkins.service
-        regexp: '^Environment="JAVA_OPTS='
-        line: 'Environment="JAVA_OPTS=-Djava.awt.headless=true -Djenkins.install.runSetupWizard=false"'
-      notify: Restart Jenkins
-
-    - name: Crear directorio para scripts de inicialización (Groovy)
+    - name: Crear estructura de directorios para Jenkins
       file:
-        path: /var/lib/jenkins/init.groovy.d
+        path: "{{ item }}"
         state: directory
-        owner: jenkins
-        group: jenkins
         mode: '0755'
+      loop:
+        - /opt/jenkins-docker
+        - /opt/jenkins-docker/jenkins_home
+        - /opt/jenkins-docker/jenkins_home/init.groovy.d
 
-    - name: Inyectar script Groovy para crear el administrador automáticamente
+    - name: Inyectar script de Groovy para crear usuario administrador
       copy:
-        dest: /var/lib/jenkins/init.groovy.d/basic-security.groovy
-        owner: jenkins
-        group: jenkins
-        mode: '0644'
+        dest: /opt/jenkins-docker/jenkins_home/init.groovy.d/basic-security.groovy
         content: |
           import jenkins.model.*
           import hudson.security.*
           def instance = Jenkins.getInstance()
           def hudsonRealm = new HudsonPrivateSecurityRealm(false)
-          hudsonRealm.createAccount("{{jenkins_admin_user}}", "{{ jenkins_admin_password }}") // ¡Cambia esta contraseña!
+          // Aquí Ansible inyecta los valores de tu secrets.yml
+          hudsonRealm.createAccount("{{ jenkins_admin_user }}", "{{ jenkins_admin_password }}")
           instance.setSecurityRealm(hudsonRealm)
           def strategy = new FullControlOnceLoggedInAuthorizationStrategy()
           strategy.setAllowAnonymousRead(false)
           instance.setAuthorizationStrategy(strategy)
           instance.save()
-      notify: Restart Jenkins
 
-    - name: Descargar Jenkins CLI (Herramienta de línea de comandos)
-      get_url:
-        url: http://localhost:8080/jnlpJars/jenkins-cli.jar
-        dest: /tmp/jenkins-cli.jar
-      retries: 5
-      delay: 10
-      register: result
-      until: result is success
+    # 5. CREACIÓN DEL CONTENEDOR
+    # ==========================================
+    - name: Generar docker-compose.yml
+      copy:
+        dest: /opt/jenkins-docker/docker-compose.yml
+        content: |
+          version: '3.8'
+          services:
+            jenkins:
+              image: jenkins/jenkins:lts
+              container_name: jenkins-master
+              user: root # Ejecuta como root para tener acceso al socket de Docker
+              ports:
+                - "8080:8080"
+                - "50000:50000"
+              environment:
+                # Esto le dice a Jenkins que no muestre la pantalla inicial de instalación
+                - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+              volumes:
+                - ./jenkins_home:/var/jenkins_home
+                - /var/run/docker.sock:/var/run/docker.sock # Permite a Jenkins interactuar con Docker
+              restart: always
 
-    - name: Instalar plugins esenciales para el pipeline multicloud
-      shell: |
-        java -jar /tmp/jenkins-cli.jar -auth {{jenkins_admin_user}}:{{ jenkins_admin_password }} -s http://localhost:8080/ install-plugin git docker-workflow aws-credentials azure-credentials kubernetes-cli configuration-as-code workflow-aggregator -deploy
-      notify: Restart Jenkins
+    - name: Levantar Jenkins con Docker Compose
+      command: docker compose up -d
+      args:
+        chdir: /opt/jenkins-docker
 
-  handlers:
-    - name: Restart Jenkins
-      systemd:
-        name: jenkins
-        state: restarted
-  
+    - name: Mostrar Instrucciones Finales
+      debug:
+        msg: 
+          - "==================================================="
+          - "✨ ORQUESTADOR JENKINS DESPLEGADO CON ÉXITO"
+          - "🌐 Accede a: http://{{ inventory_hostname }}:8080"
+          - "👤 Usuario: {{ jenkins_admin_user }}"
+          - "🔑 Contraseña: (La que configuraste en secrets.yml)"
+          - "==================================================="
