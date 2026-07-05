@@ -8,6 +8,5 @@ ansible/secrets.yml
 variables_entorno_export.txt
 jenkins_key.pem
 inventory.ini
-infra.env
 jenkins_github_key
 jenkins_github_key.pub
