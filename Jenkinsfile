@@ -112,9 +112,8 @@ pipeline {
                 }
             }
         }
-    }
 
-    stage('7. Obtener Endpoints de Acceso') {
+        stage('7. Obtener Endpoints de Acceso') {
             steps {
                 script {
                     echo "------------------------------------------------"
@@ -144,6 +143,9 @@ pipeline {
                 }
             }
         }
+    
+    }
+    
 
     // Mecanismo de Rollback Automático
     post {
