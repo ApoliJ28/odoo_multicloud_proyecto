@@ -7,6 +7,12 @@ metadata:
     app: odoo
 spec:
   type: LoadBalancer
+  # Garantiza que todas las peticiones de un mismo cliente lleguen al mismo pod.
+  # Esto evita errores de "Session Expired" cuando hay múltiples réplicas.
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
   selector:
     app: odoo
   ports:
