@@ -6,7 +6,7 @@ metadata:
   labels:
     app: odoo
 spec:
-  replicas: 2 # Usamos 2 réplicas para demostrar alta disponibilidad
+  replicas: 1 # Reducido a 1 temporalmente para evitar problemas de assets sin volumen compartido
   selector:
     matchLabels:
       app: odoo
