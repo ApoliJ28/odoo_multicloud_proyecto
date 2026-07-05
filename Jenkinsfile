@@ -179,8 +179,8 @@ pipeline {
                                 --docker-username=\$AZURE_CLIENT_ID \\
                                 --docker-password=\$AZURE_CLIENT_SECRET
                             
-                            awk '/containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/deployment.yaml > tmp.yaml && mv tmp.yaml k8s-azure/deployment.yaml
-                            awk '/containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/odoo-upgrade-job.yaml > tmp.yaml && mv tmp.yaml k8s-azure/odoo-upgrade-job.yaml
+                            awk '!/initContainers:/ && /containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/deployment.yaml > tmp.yaml && mv tmp.yaml k8s-azure/deployment.yaml
+                            awk '!/initContainers:/ && /containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/odoo-upgrade-job.yaml > tmp.yaml && mv tmp.yaml k8s-azure/odoo-upgrade-job.yaml
                         """
                         
                         sh "kubectl delete job odoo-upgrade-job --ignore-not-found"
