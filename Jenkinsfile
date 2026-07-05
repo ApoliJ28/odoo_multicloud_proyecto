@@ -43,6 +43,50 @@ pipeline {
             }
         }
 
+        tage('3.5 Aprovisionamiento de Secretos en K8s') {
+            steps {
+                script {
+                    // Creamos una lista con los IDs de las credenciales de Jenkins
+                    def secretCreds = [
+                        dbHost: 'db-host-cred',
+                        dbUser: 'db-user-cred',
+                        dbPass: 'db-pass-cred',
+                        adminPass: 'admin-pass-cred'
+                    ]
+
+                    withCredentials([
+                        string(credentialsId: secretCreds.dbHost, variable: 'DB_HOST'),
+                        string(credentialsId: secretCreds.dbUser, variable: 'DB_USER'),
+                        string(credentialsId: secretCreds.dbPass, variable: 'DB_PASSWORD'),
+                        string(credentialsId: secretCreds.adminPass, variable: 'ADMIN_PASSWORD')
+                    ]) {
+                        
+                        echo "Aplicando secretos en AWS EKS..."
+                        sh "aws eks update-kubeconfig --region ${env.AWS_REGION} --name ${env.EKS_CLUSTER}"
+                        sh """
+                            kubectl delete secret odoo-db-secrets --ignore-not-found
+                            kubectl create secret generic odoo-db-secrets \
+                                --from-literal=db_host=$DB_HOST \
+                                --from-literal=db_user=$DB_USER \
+                                --from-literal=db_password=$DB_PASSWORD \
+                                --from-literal=admin_password=$ADMIN_PASSWORD
+                        """
+
+                        echo "Aplicando secretos en Azure AKS..."
+                        sh "az aks get-credentials --resource-group ${env.AKS_RG} --name ${env.AKS_CLUSTER} --overwrite-existing"
+                        sh """
+                            kubectl delete secret odoo-db-secrets --ignore-not-found
+                            kubectl create secret generic odoo-db-secrets \
+                                --from-literal=db_host=$DB_HOST \
+                                --from-literal=db_user=$DB_USER \
+                                --from-literal=db_password=$DB_PASSWORD \
+                                --from-literal=admin_password=$ADMIN_PASSWORD
+                        """
+                    }
+                }
+            }
+        }
+
         stage('4. Push a Registros (ECR y ACR)') {
             steps {
                 script {
