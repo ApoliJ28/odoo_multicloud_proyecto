@@ -10,3 +10,4 @@ aws-credentials:latest
 pipeline-aws:latest
 azure-credentials:latest
 ssh-credentials:latest
+pipeline-utility-steps:latest

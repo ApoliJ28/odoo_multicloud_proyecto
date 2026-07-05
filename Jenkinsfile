@@ -2,19 +2,18 @@ pipeline {
     agent any
 
     environment {
-        // El tag será el hash corto del commit de Git para garantizar reproducibilidad
+        // El tag será el hash corto del commit de Git
         IMAGE_TAG = "${env.GIT_COMMIT[0..7]}"
     }
 
     stages {
-        stage('Cargar Variables de Infraestructura') {
+        stage('1. Cargar Variables de Infraestructura') {
             steps {
                 script {
                     echo "Mapeando outputs de Terraform automáticamente..."
-                    // Leemos el archivo generado por deploy.sh
+                    // Funciona gracias al plugin pipeline-utility-steps
                     def infraEnv = readProperties file: 'infra.env'
                     
-                    // Inyectamos las propiedades como variables de entorno globales para el pipeline
                     env.AWS_ECR_REPO   = infraEnv['AWS_ECR_REPO']
                     env.AZURE_ACR_REPO = infraEnv['AZURE_ACR_REPO']
                     env.AWS_REGION     = infraEnv['AWS_REGION']
@@ -25,75 +24,79 @@ pipeline {
             }
         }
 
-        stage('Compilación (Build)') {
+        stage('2. Compilación (Build)') {
             steps {
                 script {
                     echo "Construyendo imagen Docker agnóstica de Odoo..."
-                    // Ahora usamos las variables dinámicas
                     sh "docker build -t ${env.AWS_ECR_REPO}:${IMAGE_TAG} ./odoo-app"
                     sh "docker tag ${env.AWS_ECR_REPO}:${IMAGE_TAG} ${env.AZURE_ACR_REPO}:${IMAGE_TAG}"
                 }
             }
         }
 
-        stage('Análisis de Seguridad') {
+        stage('3. Análisis de Seguridad') {
             steps {
                 script {
-                    echo "Ejecutando escaneo de vulnerabilidades en la imagen (Trivy)..."
-                    // En un entorno de producción, esto fallaría si detecta vulnerabilidades CRITICAL.
-                    // Se usa '|| true' para que el pipeline continúe con el proposito de demostración del funcionanimiento del pipeline.
-                    sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL,HIGH --light ${AWS_ECR_REPO}:${IMAGE_TAG} || true"
+                    echo "Ejecutando escaneo de vulnerabilidades (Trivy)..."
+                    sh "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity CRITICAL,HIGH --light ${env.AWS_ECR_REPO}:${IMAGE_TAG} || true"
                 }
             }
         }
 
-        stage('Push a Registros (ECR y ACR)') {
+        stage('4. Push a Registros (ECR y ACR)') {
             steps {
                 script {
-                    echo "Autenticando y subiendo imagen a AWS ECR..."
-                    sh """
-                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin \$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${AWS_REGION}.amazonaws.com
-                        docker tag ${AWS_ECR_REPO}:${IMAGE_TAG} \$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${AWS_REGION}.amazonaws.com/${AWS_ECR_REPO}:${IMAGE_TAG}
-                        docker push \$(aws sts get-caller-identity --query Account --output text).dkr.ecr.${AWS_REGION}.amazonaws.com/${AWS_ECR_REPO}:${IMAGE_TAG}
-                    """
+                    // AUTENTICACIÓN AWS ECR usando el ID que inyectamos con Ansible
+                    withCredentials([aws(credentialsId: 'aws-credentials-id')]) {
+                        echo "Autenticando y subiendo imagen a AWS ECR..."
+                        sh """
+                            aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${env.AWS_ECR_REPO}
+                            docker push ${env.AWS_ECR_REPO}:${IMAGE_TAG}
+                        """
+                    }
 
-                    echo "Autenticando y subiendo imagen a Azure ACR..."
-                    sh "az acr login --name odooappacr"
-                    sh "docker push ${AZURE_ACR_REPO}:${IMAGE_TAG}"
+                    // AUTENTICACIÓN AZURE ACR usando el Service Principal de Ansible
+                    withCredentials([azureServicePrincipal('azure-credentials-id')]) {
+                        echo "Autenticando y subiendo imagen a Azure ACR..."
+                        sh """
+                            az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID
+                            docker push ${env.AZURE_ACR_REPO}:${IMAGE_TAG}
+                        """
+                    }
                 }
             }
         }
 
-        stage('Preparar Manifiestos Agnósticos') {
+        stage('5. Despliegue en AWS (EKS)') {
             steps {
                 script {
-                    echo "Inyectando el tag dinámico en los manifiestos de Kubernetes..."
-                    // Sustituye el texto REPLACE_IMAGE_TAG por el hash del commit actual
-                    sh "sed -i 's/REPLACE_IMAGE_TAG/${IMAGE_TAG}/g' k8s/deployment.yaml"
+                    withCredentials([aws(credentialsId: 'aws-credentials-id')]) {
+                        echo "Configurando contexto de kubectl para AWS EKS..."
+                        sh "aws eks update-kubeconfig --region ${env.AWS_REGION} --name ${env.EKS_CLUSTER}"
+                        
+                        echo "Inyectando imagen de ECR y desplegando en AWS..."
+                        // Hacemos una copia temporal de los manifiestos para no manchar el repo local
+                        sh "mkdir -p k8s-aws && cp k8s/* k8s-aws/"
+                        sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/deployment.yaml"
+                        sh "kubectl apply -f k8s-aws/"
+                    }
                 }
             }
         }
 
-        stage('Despliegue en AWS (EKS)') {
+        stage('6. Despliegue en Azure (AKS)') {
             steps {
                 script {
-                    echo "Configurando contexto de kubectl para EKS..."
-                    sh "aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER}"
-                    
-                    echo "Aplicando manifiestos agnósticos en AWS..."
-                    sh "kubectl apply -f k8s/"
-                }
-            }
-        }
-
-        stage('Despliegue en Azure (AKS)') {
-            steps {
-                script {
-                    echo "Configurando contexto de kubectl para AKS..."
-                    sh "az aks get-credentials --resource-group ${AKS_RG} --name ${AKS_CLUSTER} --overwrite-existing"
-                    
-                    echo "Aplicando manifiestos agnósticos en Azure..."
-                    sh "kubectl apply -f k8s/"
+                    withCredentials([azureServicePrincipal('azure-credentials-id')]) {
+                        echo "Configurando contexto de kubectl para Azure AKS..."
+                        sh "az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID"
+                        sh "az aks get-credentials --resource-group ${env.AKS_RG} --name ${env.AKS_CLUSTER} --overwrite-existing"
+                        
+                        echo "Inyectando imagen de ACR y desplegando en Azure..."
+                        sh "mkdir -p k8s-azure && cp k8s/* k8s-azure/"
+                        sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AZURE_ACR_REPO}:${IMAGE_TAG}|g' k8s-azure/deployment.yaml"
+                        sh "kubectl apply -f k8s-azure/"
+                    }
                 }
             }
         }
@@ -102,20 +105,27 @@ pipeline {
     // Mecanismo de Rollback Automático
     post {
         success {
-            echo "✅ Despliegue CI/CD completado con éxito en ambas plataformas."
-            echo "Ejecutando verificación post-despliegue (HTTP 200 OK)..."
-            // Aquí se ejecutaría un script curl para verificar la salud del endpoint
+            echo "✅ ¡DESPLIEGUE MULTICLOUD EXITOSO EN AWS Y AZURE!"
         }
         failure {
-            echo "❌ Fallo detectado en el pipeline. Iniciando mecanismo de ROLLBACK AUTOMÁTICO en ambas nubes..."
+            echo "❌ Fallo detectado en el pipeline. Iniciando ROLLBACK AUTOMÁTICO..."
             script {
-                echo "Revirtiendo despliegue en AWS EKS..."
-                sh "aws eks update-kubeconfig --region ${AWS_REGION} --name ${EKS_CLUSTER}"
-                sh "kubectl rollout undo deployment/odoo-deployment || true"
-
-                echo "Revirtiendo despliegue en Azure AKS..."
-                sh "az aks get-credentials --resource-group ${AKS_RG} --name ${AKS_CLUSTER} --overwrite-existing"
-                sh "kubectl rollout undo deployment/odoo-deployment || true"
+                // Solo intenta hacer rollback si las variables de entorno lograron cargarse en el paso 1
+                if (env.AWS_REGION != null) {
+                    withCredentials([aws(credentialsId: 'aws-credentials-id')]) {
+                        echo "Revirtiendo AWS EKS..."
+                        sh "aws eks update-kubeconfig --region ${env.AWS_REGION} --name ${env.EKS_CLUSTER} || true"
+                        sh "kubectl rollout undo deployment/odoo-deployment || true"
+                    }
+                    withCredentials([azureServicePrincipal('azure-credentials-id')]) {
+                        echo "Revirtiendo Azure AKS..."
+                        sh "az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID || true"
+                        sh "az aks get-credentials --resource-group ${env.AKS_RG} --name ${env.AKS_CLUSTER} --overwrite-existing || true"
+                        sh "kubectl rollout undo deployment/odoo-deployment || true"
+                    }
+                } else {
+                    echo "⚠️ Fallo antes de cargar variables de nube. Rollback de K8s omitido."
+                }
             }
         }
     }
