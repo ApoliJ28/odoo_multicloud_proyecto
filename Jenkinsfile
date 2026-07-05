@@ -43,7 +43,7 @@ pipeline {
             }
         }
 
-        tage('3.5 Aprovisionamiento de Secretos en K8s') {
+        stage('3.5 Aprovisionamiento de Secretos en K8s') {
             steps {
                 script {
                     // Creamos una lista con los IDs de las credenciales de Jenkins
