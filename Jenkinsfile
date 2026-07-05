@@ -64,8 +64,10 @@ pipeline {
                         sh """
                             az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID
                             
+                            ACR_NAME=\$(echo ${env.AZURE_ACR_REPO} | cut -d'.' -f1)
+
                             # Iniciar sesión en el registro de ACR
-                            az acr login --name odooappacr
+                            az acr login --name \$ACR_NAME
                             
                             docker push ${env.AZURE_ACR_REPO}:${IMAGE_TAG}
                         """
@@ -111,6 +113,37 @@ pipeline {
             }
         }
     }
+
+    stage('7. Obtener Endpoints de Acceso') {
+            steps {
+                script {
+                    echo "------------------------------------------------"
+                    echo "🌐 BUSCANDO ENDPOINTS DE ACCESO..."
+                    echo "------------------------------------------------"
+                    
+                    // AWS EKS
+                    withCredentials([
+                        aws(credentialsId: 'aws-credentials-id'),
+                        string(credentialsId: 'aws-session-token', variable: 'AWS_SESSION_TOKEN')
+                    ]) {
+                        sh "aws eks update-kubeconfig --region ${env.AWS_REGION} --name ${env.EKS_CLUSTER}"
+                        echo "Endpoint AWS (EKS):"
+                        sh "kubectl get svc odoo-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'"
+                        echo ""
+                    }
+
+                    // Azure AKS
+                    withCredentials([azureServicePrincipal('azure-credentials-id')]) {
+                        sh "az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID"
+                        sh "az aks get-credentials --resource-group ${env.AKS_RG} --name ${env.AKS_CLUSTER} --overwrite-existing"
+                        echo "Endpoint Azure (AKS):"
+                        sh "kubectl get svc odoo-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}'"
+                        echo ""
+                    }
+                    echo "------------------------------------------------"
+                }
+            }
+        }
 
     // Mecanismo de Rollback Automático
     post {
