@@ -149,6 +149,7 @@ pipeline {
                         // Hacemos una copia temporal de los manifiestos para no manchar el repo local
                         sh "mkdir -p k8s-aws && cp k8s/* k8s-aws/"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/deployment.yaml"
+                        sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s/odoo-upgrade-job.yaml"
                         sh "kubectl apply -f k8s-aws/"
                     }
                 }
@@ -166,6 +167,7 @@ pipeline {
                         echo "Inyectando imagen de ACR y desplegando en Azure..."
                         sh "mkdir -p k8s-azure && cp k8s/* k8s-azure/"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AZURE_ACR_REPO}:${IMAGE_TAG}|g' k8s-azure/deployment.yaml"
+                        sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AZURE_ACR_REPO}:${IMAGE_TAG}|g' k8s-azure/odoo-upgrade-job.yaml"
                         sh "kubectl apply -f k8s-azure/"
                     }
                 }
