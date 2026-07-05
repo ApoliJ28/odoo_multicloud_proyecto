@@ -1,4 +1,4 @@
-# Extraemos datos de la sesión actual de Azure para los permisos de Key Vault
+# Extraemos datos de la sesión actual de Azure para los permisos de Key Vault.
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_resource_group" "main" {
