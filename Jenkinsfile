@@ -63,6 +63,10 @@ pipeline {
                         echo "Autenticando y subiendo imagen a Azure ACR..."
                         sh """
                             az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID
+                            
+                            # Iniciar sesión en el registro de ACR
+                            az acr login --name odooappacr
+                            
                             docker push ${env.AZURE_ACR_REPO}:${IMAGE_TAG}
                         """
                     }
