@@ -65,8 +65,8 @@ resource "aws_instance" "jenkins_server" {
 
   tags = { Name = "odoo-jenkins-orchestrator" }
 
-  # root_block_device {
-  #   volume_size = 20 
-  #   volume_type = "gp3"
-  # }
+  root_block_device {
+    volume_size = 30 
+    volume_type = "gp3"
+  }
 }

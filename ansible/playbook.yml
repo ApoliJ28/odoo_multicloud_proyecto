@@ -92,7 +92,10 @@
         src: "./templates/init.groovy.d/3_pipeline-job.groovy.j2"
         dest: "/opt/jenkins-docker/jenkins_home/init.groovy.d/3_pipeline-job.groovy"
         mode: '0644'
-
+    
+    - name: Limpiar caché acumulado de Docker BuildKit y contenedores viejos
+      shell: docker system prune -a --volumes -f && docker builder prune -a -f
+      ignore_errors: true
     # 5. Desplegar Jenkins con Docker Compose
     # -----------------------------------------
     - name: Construir imagen y levantar Jenkins con Docker Compose
