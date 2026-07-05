@@ -47,8 +47,11 @@ pipeline {
             steps {
                 script {
                     // AUTENTICACIÓN AWS ECR usando el ID que inyectamos con Ansible
-                    withCredentials([aws(credentialsId: 'aws-credentials-id')]) {
-                        echo "Autenticando y subiendo imagen a AWS ECR..."
+                    withCredentials([
+                        aws(credentialsId: 'aws-credentials-id'),
+                        string(credentialsId: 'aws-session-token', variable: 'AWS_SESSION_TOKEN')
+                    ]) {
+                        echo "Autenticando en AWS ECR con soporte temporal STS..."
                         sh """
                             aws ecr get-login-password --region ${env.AWS_REGION} | docker login --username AWS --password-stdin ${env.AWS_ECR_REPO}
                             docker push ${env.AWS_ECR_REPO}:${IMAGE_TAG}
@@ -70,7 +73,10 @@ pipeline {
         stage('5. Despliegue en AWS (EKS)') {
             steps {
                 script {
-                    withCredentials([aws(credentialsId: 'aws-credentials-id')]) {
+                    withCredentials([
+                        aws(credentialsId: 'aws-credentials-id'),
+                        string(credentialsId: 'aws-session-token', variable: 'AWS_SESSION_TOKEN')
+                    ]) {
                         echo "Configurando contexto de kubectl para AWS EKS..."
                         sh "aws eks update-kubeconfig --region ${env.AWS_REGION} --name ${env.EKS_CLUSTER}"
                         
@@ -112,7 +118,10 @@ pipeline {
             script {
                 // Solo intenta hacer rollback si las variables de entorno lograron cargarse en el paso 1
                 if (env.AWS_REGION != null) {
-                    withCredentials([aws(credentialsId: 'aws-credentials-id')]) {
+                    withCredentials([
+                        aws(credentialsId: 'aws-credentials-id'),
+                        string(credentialsId: 'aws-session-token', variable: 'AWS_SESSION_TOKEN')
+                    ]) {
                         echo "Revirtiendo AWS EKS..."
                         sh "aws eks update-kubeconfig --region ${env.AWS_REGION} --name ${env.EKS_CLUSTER} || true"
                         sh "kubectl rollout undo deployment/odoo-deployment || true"
