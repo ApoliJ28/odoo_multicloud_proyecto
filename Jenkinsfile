@@ -46,21 +46,20 @@ pipeline {
         stage('3.5 Aprovisionamiento de Secretos en K8s') {
             steps {
                 script {
-                    // Creamos una lista con los IDs de las credenciales de Jenkins
                     def secretCreds = [
-                        dbHost: 'db-host-cred',
-                        dbUser: 'db-user-cred',
-                        dbPass: 'db-pass-cred',
-                        adminPass: 'admin-pass-cred'
+                        dbHost: 'db-host-cred', dbUser: 'db-user-cred',
+                        dbPass: 'db-pass-cred', adminPass: 'admin-pass-cred'
                     ]
 
+                    // 1. PRIMERO: Aplicar secretos en AWS (con credenciales AWS)
                     withCredentials([
+                        aws(credentialsId: 'aws-credentials-id'),
+                        string(credentialsId: 'aws-session-token', variable: 'AWS_SESSION_TOKEN'),
                         string(credentialsId: secretCreds.dbHost, variable: 'DB_HOST'),
                         string(credentialsId: secretCreds.dbUser, variable: 'DB_USER'),
                         string(credentialsId: secretCreds.dbPass, variable: 'DB_PASSWORD'),
                         string(credentialsId: secretCreds.adminPass, variable: 'ADMIN_PASSWORD')
                     ]) {
-                        
                         echo "Aplicando secretos en AWS EKS..."
                         sh "aws eks update-kubeconfig --region ${env.AWS_REGION} --name ${env.EKS_CLUSTER}"
                         sh """
@@ -71,8 +70,18 @@ pipeline {
                                 --from-literal=db_password=$DB_PASSWORD \
                                 --from-literal=admin_password=$ADMIN_PASSWORD
                         """
+                    }
 
+                    // 2. SEGUNDO: Aplicar secretos en Azure (con credenciales Azure)
+                    withCredentials([
+                        azureServicePrincipal('azure-credentials-id'),
+                        string(credentialsId: secretCreds.dbHost, variable: 'DB_HOST'),
+                        string(credentialsId: secretCreds.dbUser, variable: 'DB_USER'),
+                        string(credentialsId: secretCreds.dbPass, variable: 'DB_PASSWORD'),
+                        string(credentialsId: secretCreds.adminPass, variable: 'ADMIN_PASSWORD')
+                    ]) {
                         echo "Aplicando secretos en Azure AKS..."
+                        sh "az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID"
                         sh "az aks get-credentials --resource-group ${env.AKS_RG} --name ${env.AKS_CLUSTER} --overwrite-existing"
                         sh """
                             kubectl delete secret odoo-db-secrets --ignore-not-found
