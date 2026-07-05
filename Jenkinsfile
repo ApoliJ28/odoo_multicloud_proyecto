@@ -48,7 +48,9 @@ pipeline {
                 script {
                     def secretCreds = [
                         dbHost: 'db-host-cred', dbUser: 'db-user-cred',
-                        dbPass: 'db-pass-cred', adminPass: 'admin-pass-cred'
+                        dbPass: 'db-pass-cred', adminPass: 'admin-pass-cred',
+                        dbName: 'db-name-cred'
+                        
                     ]
 
                     // 1. PRIMERO: Aplicar secretos en AWS (con credenciales AWS)
@@ -58,7 +60,8 @@ pipeline {
                         string(credentialsId: secretCreds.dbHost, variable: 'DB_HOST'),
                         string(credentialsId: secretCreds.dbUser, variable: 'DB_USER'),
                         string(credentialsId: secretCreds.dbPass, variable: 'DB_PASSWORD'),
-                        string(credentialsId: secretCreds.adminPass, variable: 'ADMIN_PASSWORD')
+                        string(credentialsId: secretCreds.adminPass, variable: 'ADMIN_PASSWORD'),
+                        string(credentialsId: secretCreds.dbName, variable: 'DB_NAME')
                     ]) {
                         echo "Aplicando secretos en AWS EKS..."
                         sh "aws eks update-kubeconfig --region ${env.AWS_REGION} --name ${env.EKS_CLUSTER}"
@@ -68,7 +71,8 @@ pipeline {
                                 --from-literal=db_host=$DB_HOST \
                                 --from-literal=db_user=$DB_USER \
                                 --from-literal=db_password=$DB_PASSWORD \
-                                --from-literal=admin_password=$ADMIN_PASSWORD
+                                --from-literal=admin_password=$ADMIN_PASSWORD \
+                                --from-literal=db_name=$DB_NAME
                         """
                     }
 
@@ -78,7 +82,8 @@ pipeline {
                         string(credentialsId: secretCreds.dbHost, variable: 'DB_HOST'),
                         string(credentialsId: secretCreds.dbUser, variable: 'DB_USER'),
                         string(credentialsId: secretCreds.dbPass, variable: 'DB_PASSWORD'),
-                        string(credentialsId: secretCreds.adminPass, variable: 'ADMIN_PASSWORD')
+                        string(credentialsId: secretCreds.adminPass, variable: 'ADMIN_PASSWORD'),
+                        string(credentialsId: secretCreds.dbName, variable: 'DB_NAME')
                     ]) {
                         echo "Aplicando secretos en Azure AKS..."
                         sh "az login --service-principal -u \$AZURE_CLIENT_ID -p \$AZURE_CLIENT_SECRET --tenant \$AZURE_TENANT_ID"
@@ -89,7 +94,8 @@ pipeline {
                                 --from-literal=db_host=$DB_HOST \
                                 --from-literal=db_user=$DB_USER \
                                 --from-literal=db_password=$DB_PASSWORD \
-                                --from-literal=admin_password=$ADMIN_PASSWORD
+                                --from-literal=admin_password=$ADMIN_PASSWORD \
+                                --from-literal=db_name=$DB_NAME
                         """
                     }
                 }

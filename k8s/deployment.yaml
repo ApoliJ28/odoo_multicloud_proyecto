@@ -45,9 +45,14 @@ spec:
             secretKeyRef:
               name: odoo-db-secrets
               key: db_password
-        - name: ODOO_ADMIN_PASSWORD
+        - name: ADMIN_PASSWORD
           valueFrom:
             secretKeyRef:
               name: odoo-db-secrets
               key: admin_password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: odoo-db-secrets
+              key: db_name
   
