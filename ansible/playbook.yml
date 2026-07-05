@@ -1,14 +1,15 @@
 ---
-- name: Aprovisionamiento del Orquestador Jenkins (Docker + Admin Auth)
+- name: Aprovisionamiento del Orquestador Jenkins (Docker + Admin Auth + Multicloud Creds)
   hosts: jenkins_server
   become: true # Ejecutar con privilegios de sudo
 
-  # 1. se carga los secretos.
+  # 1. Carga de variables secretas (Credenciales de Jenkins, AWS y Azure)
   vars_files:
     - secrets.yml
 
   tasks:
-    # 2. Memoria Virtual
+    # 2. Memoria Swap (2GB) para la EC2
+    # -----------------------------------------
     - name: Crear y activar un archivo Swap de 2GB
       shell: |
         if [ ! -f /swapfile ]; then
@@ -20,6 +21,7 @@
         fi
 
     # 3. Instalación de Docker y Docker Compose
+    # -----------------------------------------
     - name: Actualizar caché y paquetes básicos
       apt:
         name: [wget, curl, git, apt-transport-https, ca-certificates, software-properties-common]
@@ -48,8 +50,9 @@
         state: started
         enabled: yes
 
-    # 4. Preparación de la estructura de directorios y script de Groovy para Jenkins
-    - name: Crear estructura de directorios para Jenkins
+    # 4. Preparar estructura de directorios y archivos para Jenkins
+    # -----------------------------------------
+    - name: Crear estructura de directorios para Jenkins en la EC2
       file:
         path: "{{ item }}"
         state: directory
@@ -59,46 +62,41 @@
         - /opt/jenkins-docker/jenkins_home
         - /opt/jenkins-docker/jenkins_home/init.groovy.d
 
-    - name: Inyectar script de Groovy para crear usuario administrador
+    - name: Copiar archivos estáticos (Dockerfile y plugins.txt)
       copy:
-        dest: /opt/jenkins-docker/jenkins_home/init.groovy.d/basic-security.groovy
-        content: |
-          import jenkins.model.*
-          import hudson.security.*
-          def instance = Jenkins.getInstance()
-          def hudsonRealm = new HudsonPrivateSecurityRealm(false)
-          // Aquí Ansible inyecta los valores de tu secrets.yml
-          hudsonRealm.createAccount("{{ jenkins_admin_user }}", "{{ jenkins_admin_password }}")
-          instance.setSecurityRealm(hudsonRealm)
-          def strategy = new FullControlOnceLoggedInAuthorizationStrategy()
-          strategy.setAllowAnonymousRead(false)
-          instance.setAuthorizationStrategy(strategy)
-          instance.save()
+        src: "./templates/{{ item }}"
+        dest: "/opt/jenkins-docker/{{ item }}"
+      loop:
+        - Dockerfile
+        - plugins.txt
 
-    # 5. Creación del archivo docker-compose.yml y levantamiento de Jenkins
-    - name: Generar docker-compose.yml
-      copy:
-        dest: /opt/jenkins-docker/docker-compose.yml
-        content: |
-          version: '3.8'
-          services:
-            jenkins:
-              image: jenkins/jenkins:lts
-              container_name: jenkins-master
-              user: root # Ejecuta como root para tener acceso al socket de Docker
-              ports:
-                - "8080:8080"
-                - "50000:50000"
-              environment:
-                # Esto le dice a Jenkins que no muestre la pantalla inicial de instalación
-                - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
-              volumes:
-                - ./jenkins_home:/var/jenkins_home
-                - /var/run/docker.sock:/var/run/docker.sock # Permite a Jenkins interactuar con Docker
-              restart: always
+    - name: Generar docker-compose.yml desde tu plantilla Jinja2
+      template:
+        src: "./templates/docker-compose.yml.j2"
+        dest: "/opt/jenkins-docker/docker-compose.yml"
 
-    - name: Levantar Jenkins con Docker Compose
-      command: docker compose up -d
+    - name: Inyectar plantilla de Seguridad Básica (Usuario Admin)
+      template:
+        src: "./templates/init.groovy.d/1_basic-security.groovy.j2"
+        dest: "/opt/jenkins-docker/jenkins_home/init.groovy.d/1_basic-security.groovy"
+        mode: '0644'
+
+    - name: Inyectar plantilla de Credenciales Multicloud (AWS + Azure)
+      template:
+        src: "./templates/init.groovy.d/2_credentials.groovy.j2"
+        dest: "/opt/jenkins-docker/jenkins_home/init.groovy.d/2_credentials.groovy"
+        mode: '0644'
+    
+    - name: Inyectar plantilla de Conexión a GitHub y Creación de Job
+      template:
+        src: "./templates/init.groovy.d/3_pipeline-job.groovy.j2"
+        dest: "/opt/jenkins-docker/jenkins_home/init.groovy.d/3_pipeline-job.groovy"
+        mode: '0644'
+
+    # 5. Desplegar Jenkins con Docker Compose
+    # -----------------------------------------
+    - name: Construir imagen y levantar Jenkins con Docker Compose
+      command: docker compose up -d --build
       args:
         chdir: /opt/jenkins-docker
 
@@ -109,5 +107,7 @@
           - "✨ ORQUESTADOR JENKINS DESPLEGADO CON ÉXITO"
           - "🌐 Accede a: http://{{ inventory_hostname }}:8080"
           - "👤 Usuario: {{ jenkins_admin_user }}"
+          - "🔑 Contraseña: (La configurada en secrets.yml)"
+          - "☁️  Credenciales 'aws-credentials-id' y 'azure-credentials-id' inyectadas."
           - "==================================================="
-  
+    

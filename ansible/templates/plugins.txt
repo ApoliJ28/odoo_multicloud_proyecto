@@ -1,0 +1,12 @@
+pipeline-stage-view:latest
+git:latest
+github:latest
+workflow-aggregator:latest
+docker-workflow:latest
+docker-commons:latest
+kubernetes-cli:latest
+kubernetes:latest
+aws-credentials:latest
+pipeline-aws:latest
+azure-credentials:latest
+ssh-credentials:latest

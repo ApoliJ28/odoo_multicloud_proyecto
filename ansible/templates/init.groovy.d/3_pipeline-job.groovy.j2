@@ -1,0 +1,64 @@
+import jenkins.model.*
+import org.jenkinsci.plugins.workflow.job.WorkflowJob
+import org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition
+import hudson.plugins.git.GitSCM
+import hudson.plugins.git.BranchSpec
+import hudson.plugins.git.UserRemoteConfig
+import com.cloudbees.plugins.credentials.*
+import com.cloudbees.plugins.credentials.domains.Domain
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey
+import com.cloudbees.jenkins.GitHubPushTrigger // <-- NUEVO: Para activar el webhook por código
+import java.util.Collections
+
+def store = Jenkins.instance.getExtensionList('com.cloudbees.plugins.credentials.SystemCredentialsProvider')[0].getStore()
+def domain = Domain.global()
+
+println("--> 3. Configurando conexión SSH con GitHub y creando Pipeline con Webhook Trigger...")
+
+// 1. REGISTRAR LLAVE SSH DE GITHUB
+def githubSshKey = new BasicSSHUserPrivateKey(
+  CredentialsScope.GLOBAL,
+  "github-ssh-creds",
+  "git",
+  new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource('''{{ github_ssh_private_key }}'''),
+  "",
+  "Llave SSH de GitHub generada por Ansible IaC"
+)
+store.addCredentials(domain, githubSshKey)
+println("--> Llave SSH de GitHub registrada bajo el ID: github-ssh-creds")
+
+// 2. CREAR EL JOB PIPELINE AUTOMÁTICAMENTE
+def jobName = "odoo-multicloud-pipeline"
+def job = Jenkins.instance.getItemByFullName(jobName, WorkflowJob.class)
+
+if (job == null) {
+  job = Jenkins.instance.createProject(WorkflowJob.class, jobName)
+  println("--> Creating new Pipeline job: " + jobName)
+} else {
+  println("--> Job " + jobName + " already exists, updating configuration...")
+}
+
+def scm = new GitSCM(
+  Collections.singletonList(new UserRemoteConfig("{{ github_repo_url }}", null, null, "github-ssh-creds")),
+  Collections.singletonList(new BranchSpec("*/{{ github_branch | default('main') }}")),
+  false,
+  Collections.emptyList(),
+  null,
+  null,
+  Collections.emptyList()
+)
+
+def flowDefinition = new CpsScmFlowDefinition(scm, "Jenkinsfile")
+flowDefinition.setLightweight(true)
+job.setDefinition(flowDefinition)
+
+// OPCIÓN: SCM Polling (Activo) -> Revisa GitHub cada 3 minutos en busca de nuevos commits
+// job.addTrigger(new SCMTrigger("H/3 * * * *"))
+// println("--> Trigger activo: SCM Polling programado cada 3 minutos (H/3 * * * *)")
+
+// Activar automáticamente el trigger del Webhook de GitHub
+job.addTrigger(new GitHubPushTrigger())
+
+job.save()
+Jenkins.instance.save()
+println("--> ✅ Tarea '" + jobName + "' vinculada a GitHub por SSH y Webhook activado por código.")

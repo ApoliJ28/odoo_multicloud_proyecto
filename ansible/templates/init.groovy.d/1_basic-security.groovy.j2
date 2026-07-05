@@ -1,0 +1,17 @@
+import jenkins.model.*
+import hudson.security.*
+
+def instance = Jenkins.getInstance()
+println("--> 1. Iniciando configuración de seguridad básica...")
+
+def hudsonRealm = new HudsonPrivateSecurityRealm(false)
+// Se usa comillas simples '' para evitar el error de interpolación con el símbolo $
+hudsonRealm.createAccount('{{ jenkins_admin_user }}', '{{ jenkins_admin_password }}')
+instance.setSecurityRealm(hudsonRealm)
+
+def strategy = new FullControlOnceLoggedInAuthorizationStrategy()
+strategy.setAllowAnonymousRead(false)
+instance.setAuthorizationStrategy(strategy)
+
+instance.save()
+println("--> ✅ Seguridad básica configurada: Usuario '{{ jenkins_admin_user }}' creado con éxito.")

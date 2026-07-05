@@ -64,4 +64,9 @@ resource "aws_instance" "jenkins_server" {
   associate_public_ip_address = true
 
   tags = { Name = "odoo-jenkins-orchestrator" }
+
+  root_block_device {
+    volume_size = 20 
+    volume_type = "gp3"
+  }
 }
