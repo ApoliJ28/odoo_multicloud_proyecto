@@ -168,6 +168,20 @@ pipeline {
                         sh "mkdir -p k8s-azure && cp k8s/* k8s-azure/"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AZURE_ACR_REPO}:${IMAGE_TAG}|g' k8s-azure/deployment.yaml"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AZURE_ACR_REPO}:${IMAGE_TAG}|g' k8s-azure/odoo-upgrade-job.yaml"
+                        
+                        echo "Creando secreto para que AKS pueda descargar la imagen de ACR..."
+                        sh """
+                            ACR_SERVER=\$(echo ${env.AZURE_ACR_REPO} | cut -d'/' -f1)
+                            kubectl delete secret acr-secret --ignore-not-found
+                            kubectl create secret docker-registry acr-secret \\
+                                --docker-server=\$ACR_SERVER \\
+                                --docker-username=\$AZURE_CLIENT_ID \\
+                                --docker-password=\$AZURE_CLIENT_SECRET
+                            
+                            awk '/containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/deployment.yaml > tmp.yaml && mv tmp.yaml k8s-azure/deployment.yaml
+                            awk '/containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/odoo-upgrade-job.yaml > tmp.yaml && mv tmp.yaml k8s-azure/odoo-upgrade-job.yaml
+                        """
+                        
                         sh "kubectl apply -f k8s-azure/"
                     }
                 }

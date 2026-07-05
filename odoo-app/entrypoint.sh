@@ -5,7 +5,7 @@ echo "Generando archivo de configuración odoo.conf desde variables de entorno..
 
 cat <<EOF > /etc/odoo/odoo.conf
 [options]
-admin_passwd = ${ODOO_ADMIN_PASSWORD:-admin}
+admin_passwd = ${ADMIN_PASSWORD:-admin}
 db_host = ${DB_HOST:-localhost}
 db_port = ${DB_PORT:-5432}
 db_user = ${DB_USER:-odoo}

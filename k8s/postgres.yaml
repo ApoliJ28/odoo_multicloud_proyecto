@@ -26,6 +26,11 @@ spec:
             secretKeyRef:
               name: odoo-db-secrets
               key: db_password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: odoo-db-secrets
+              key: db_name
 ---
 
 apiVersion: v1
