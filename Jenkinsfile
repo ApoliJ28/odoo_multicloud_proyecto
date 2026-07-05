@@ -149,7 +149,8 @@ pipeline {
                         // Hacemos una copia temporal de los manifiestos para no manchar el repo local
                         sh "mkdir -p k8s-aws && cp k8s/* k8s-aws/"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/deployment.yaml"
-                        sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s/odoo-upgrade-job.yaml"
+                        sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/odoo-upgrade-job.yaml"
+                        sh "kubectl delete job odoo-upgrade-job --ignore-not-found"
                         sh "kubectl apply -f k8s-aws/"
                     }
                 }
@@ -182,6 +183,7 @@ pipeline {
                             awk '/containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/odoo-upgrade-job.yaml > tmp.yaml && mv tmp.yaml k8s-azure/odoo-upgrade-job.yaml
                         """
                         
+                        sh "kubectl delete job odoo-upgrade-job --ignore-not-found"
                         sh "kubectl apply -f k8s-azure/"
                     }
                 }
