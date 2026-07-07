@@ -16,6 +16,23 @@ trap 'echo -e "\n${RED}❌ ERROR: La destrucción falló en la línea $LINENO. R
 echo -e "${RED}🔥 INICIANDO DESTRUCCIÓN TOTAL DE LA INFRAESTRUCTURA (AWS + AZURE)${NC}"
 echo -e "${BLUE}===================================================${NC}"
 
+# 0. Limpieza de recursos de Kubernetes
+# --------------------------------------------------
+echo -e "\n${BLUE}--> 0. Limpiando recursos en Kubernetes (Eliminando LoadBalancers para evitar bloqueos en Terraform)...${NC}"
+
+echo -e "${YELLOW}Limpiando recursos en Azure AKS...${NC}"
+kubectl config use-context odoo-azure-aks-cluster || true
+kubectl delete -f k8s/ --ignore-not-found=true || true
+
+echo -e "${YELLOW}Limpiando recursos en AWS EKS...${NC}"
+if command -v aws &> /dev/null; then
+    aws eks update-kubeconfig --region us-east-1 --name odoo-aws-eks-cluster || true
+    kubectl delete -f k8s/ --ignore-not-found=true || true
+else
+    echo -e "${RED}⚠️  AWS CLI no detectado. Si hay LoadBalancers en AWS, podrían bloquear la destrucción.${NC}"
+fi
+
+
 # 1. Destrucción en Azure
 # --------------------------------------------------
 echo -e "\n${BLUE}--> 1. Destruyendo la infraestructura en Azure (AKS, ACR, Key Vault)...${NC}"

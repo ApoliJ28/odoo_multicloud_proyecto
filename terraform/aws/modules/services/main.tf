@@ -1,6 +1,7 @@
 resource "aws_ecr_repository" "odoo_app" {
     name                 = "odoo-app"
     image_tag_mutability = "MUTABLE"
+    force_delete         = true
     image_scanning_configuration {
         scan_on_push = true
     }
