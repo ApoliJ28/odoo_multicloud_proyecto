@@ -22,7 +22,7 @@ spec:
         command: ["/bin/bash", "-c"]
         args: 
           - |
-            /custom-entrypoint.sh odoo -u all --stop-after-init --no-http || /custom-entrypoint.sh odoo -i web --stop-after-init --no-http
+            /custom-entrypoint.sh odoo -i web -u all --stop-after-init --no-http
         env:
         - name: DB_HOST
           valueFrom:

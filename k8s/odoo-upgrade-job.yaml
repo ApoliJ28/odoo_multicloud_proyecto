@@ -11,7 +11,7 @@ spec:
         command: ["/bin/bash", "-c"]
         args: 
           - |
-            /custom-entrypoint.sh odoo -d odoo_produccion -u all --stop-after-init || /custom-entrypoint.sh odoo -d odoo_produccion -i web --stop-after-init
+            /custom-entrypoint.sh odoo -d odoo_produccion -i web -u all --stop-after-init
         env:
         - name: DB_HOST
           valueFrom: { secretKeyRef: { name: odoo-db-secrets, key: db_host } }
