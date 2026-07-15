@@ -52,6 +52,7 @@ spec:
       containers:
       - name: odoo-app
         # La imagen será reemplazada dinámicamente por Jenkins en cada despliegue
+        args: ["odoo", "-i", "base"]
         image: REPLACE_IMAGE_TAG 
         ports:
         - containerPort: 8069
