@@ -1,6 +1,6 @@
 pipeline {
     agent any
-    //coment push
+    //coment push.
     environment {
         // El tag será el hash corto del commit de Git
         IMAGE_TAG = "${env.GIT_COMMIT[0..7]}"
