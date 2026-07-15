@@ -65,17 +65,17 @@ spec:
         # Readiness: El LoadBalancer NO envía tráfico hasta que Odoo responda en /web/login
         readinessProbe:
           httpGet:
-            path: /web/login
+            path: /web/health
             port: 8069
-          initialDelaySeconds: 20
+          initialDelaySeconds: 40
           periodSeconds: 10
           timeoutSeconds: 5
         # Liveness: Si Odoo deja de responder, Kubernetes reinicia el contenedor
         livenessProbe:
           httpGet:
-            path: /web/login
+            path: /web/health
             port: 8069
-          initialDelaySeconds: 60
+          initialDelaySeconds: 120
           periodSeconds: 30
           timeoutSeconds: 10
         env:
