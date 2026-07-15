@@ -15,40 +15,6 @@ spec:
       labels:
         app: odoo
     spec:
-    # Init container para actualizar la base de datos
-      initContainers:
-      - name: odoo-init-db
-        image: REPLACE_IMAGE_TAG
-        command: ["/bin/bash", "-c"]
-        args: 
-          - |
-            /custom-entrypoint.sh odoo -i web -u all --stop-after-init --no-http
-        env:
-        - name: DB_HOST
-          valueFrom:
-            secretKeyRef:
-              name: odoo-db-secrets
-              key: db_host
-        - name: DB_USER
-          valueFrom:
-            secretKeyRef:
-              name: odoo-db-secrets
-              key: db_user
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: odoo-db-secrets
-              key: db_password
-        - name: ADMIN_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: odoo-db-secrets
-              key: admin_password
-        - name: DB_NAME
-          valueFrom:
-            secretKeyRef:
-              name: odoo-db-secrets
-              key: db_name
       containers:
       - name: odoo-app
         # La imagen será reemplazada dinámicamente por Jenkins en cada despliegue
@@ -63,7 +29,7 @@ spec:
           limits:
             memory: "2Gi"
             cpu: "1000m"
-        # Readiness: El LoadBalancer NO envía tráfico hasta que Odoo responda en /web/login
+        # Readiness: El LoadBalancer NO envía tráfico hasta que Odoo responda en /web/health
         readinessProbe:
           httpGet:
             path: /web/health

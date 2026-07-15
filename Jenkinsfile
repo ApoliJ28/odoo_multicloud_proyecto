@@ -150,8 +150,21 @@ pipeline {
                         sh "mkdir -p k8s-aws && cp k8s/* k8s-aws/"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/deployment.yaml"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/odoo-upgrade-job.yaml"
+                        
+                        // Paso 1: Desplegar PostgreSQL y Servicio primero
+                        echo "Paso 1/3: Desplegando PostgreSQL y Servicios..."
+                        sh "kubectl apply -f k8s-aws/postgres.yaml -f k8s-aws/service.yaml"
+                        sh "kubectl rollout status deployment/postgres-deployment --timeout=120s"
+                        
+                        // Paso 2: Ejecutar Job de inicialización de BD y esperar a que termine
+                        echo "Paso 2/3: Inicializando base de datos con el Job..."
                         sh "kubectl delete job odoo-upgrade-job --ignore-not-found"
-                        sh "kubectl apply -f k8s-aws/"
+                        sh "kubectl apply -f k8s-aws/odoo-upgrade-job.yaml"
+                        sh "kubectl wait --for=condition=complete job/odoo-upgrade-job --timeout=300s"
+                        
+                        // Paso 3: Desplegar Odoo (la BD ya está lista)
+                        echo "Paso 3/3: Desplegando Odoo..."
+                        sh "kubectl apply -f k8s-aws/deployment.yaml"
                     }
                 }
             }
@@ -179,12 +192,24 @@ pipeline {
                                 --docker-username=\$AZURE_CLIENT_ID \\
                                 --docker-password=\$AZURE_CLIENT_SECRET
                             
-                            awk '!/initContainers:/ && /containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/deployment.yaml > tmp.yaml && mv tmp.yaml k8s-azure/deployment.yaml
-                            awk '!/initContainers:/ && /containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/odoo-upgrade-job.yaml > tmp.yaml && mv tmp.yaml k8s-azure/odoo-upgrade-job.yaml
+                            awk '/containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/deployment.yaml > tmp.yaml && mv tmp.yaml k8s-azure/deployment.yaml
+                            awk '/containers:/ { print "      imagePullSecrets:\\n      - name: acr-secret"; print; next }1' k8s-azure/odoo-upgrade-job.yaml > tmp.yaml && mv tmp.yaml k8s-azure/odoo-upgrade-job.yaml
                         """
                         
+                        // Paso 1: Desplegar PostgreSQL y Servicio primero
+                        echo "Paso 1/3: Desplegando PostgreSQL y Servicios..."
+                        sh "kubectl apply -f k8s-azure/postgres.yaml -f k8s-azure/service.yaml"
+                        sh "kubectl rollout status deployment/postgres-deployment --timeout=120s"
+                        
+                        // Paso 2: Ejecutar Job de inicialización de BD y esperar a que termine
+                        echo "Paso 2/3: Inicializando base de datos con el Job..."
                         sh "kubectl delete job odoo-upgrade-job --ignore-not-found"
-                        sh "kubectl apply -f k8s-azure/"
+                        sh "kubectl apply -f k8s-azure/odoo-upgrade-job.yaml"
+                        sh "kubectl wait --for=condition=complete job/odoo-upgrade-job --timeout=300s"
+                        
+                        // Paso 3: Desplegar Odoo (la BD ya está lista)
+                        echo "Paso 3/3: Desplegando Odoo..."
+                        sh "kubectl apply -f k8s-azure/deployment.yaml"
                     }
                 }
             }
