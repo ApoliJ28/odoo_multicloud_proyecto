@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo-service
+  namespace: default
+  labels:
+    app: odoo
+  annotations:
+    # Estas dos líneas activan la "Sticky Session" en el LoadBalancer de AWS
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+    service.beta.kubernetes.io/aws-load-balancer-cookie-expiration: "3600"
+spec:
+  type: LoadBalancer
+  selector:
+    app: odoo
+  ports:
+    - port: 80
+      targetPort: 8069
+      protocol: TCP
