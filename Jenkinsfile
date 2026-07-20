@@ -142,7 +142,7 @@ pipeline {
                         aws(credentialsId: 'aws-credentials-id'),
                         string(credentialsId: 'aws-session-token', variable: 'AWS_SESSION_TOKEN')
                     ]) {
-                        echo "Configurando contexto de kubectl para AWS EKS..."
+                        eecho "Configurando contexto de kubectl para AWS EKS..."
                         sh "aws eks update-kubeconfig --region ${env.AWS_REGION} --name ${env.EKS_CLUSTER}"
                         
                         echo "Inyectando imagen de ECR y desplegando en AWS..."
@@ -150,6 +150,13 @@ pipeline {
                         sh "mkdir -p k8s-aws && cp k8s/* k8s-aws/"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/deployment.yaml"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/odoo-upgrade-job.yaml"
+                        
+                        echo "Adaptando Service YAML para compatibilidad con AWS ELB..."
+                        sh "sed -i '/sessionAffinity:/d' k8s-aws/service.yaml"
+                        sh "sed -i '/sessionAffinityConfig:/d' k8s-aws/service.yaml"
+                        sh "sed -i '/clientIP:/d' k8s-aws/service.yaml"
+                        sh "sed -i '/timeoutSeconds:/d' k8s-aws/service.yaml"
+                        // ---------------------------------------------------------
                         
                         // Paso 1: Desplegar PostgreSQL y Servicio primero
                         echo "Paso 1/3: Desplegando PostgreSQL y Servicios..."

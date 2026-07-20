@@ -5,14 +5,18 @@ metadata:
   namespace: default
   labels:
     app: odoo
+  annotations:
+    # Estas dos líneas activan la "Sticky Session" en el LoadBalancer de AWS
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+    service.beta.kubernetes.io/aws-load-balancer-cookie-expiration: "3600"
 spec:
   type: LoadBalancer
   # Garantiza que todas las peticiones de un mismo cliente lleguen al mismo pod.
   # Esto evita errores de "Session Expired" cuando hay múltiples réplicas.
-  # sessionAffinity: ClientIP
-  # sessionAffinityConfig:
-  #   clientIP:
-  #     timeoutSeconds: 3600
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 3600
   selector:
     app: odoo
   ports:
