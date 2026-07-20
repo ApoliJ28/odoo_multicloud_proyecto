@@ -3,7 +3,7 @@
   hosts: jenkins_server
   become: true # Ejecutar con privilegios de sudo
 
-  # 1. Carga de variables secretas (Credenciales de Jenkins, AWS y Azure) .
+  # 1. Carga de variables secretas (Credenciales de Jenkins, AWS y Azure).
   vars_files:
     - secrets.yml
 
