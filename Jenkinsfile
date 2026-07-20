@@ -151,13 +151,6 @@ pipeline {
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/deployment.yaml"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/odoo-upgrade-job.yaml"
                         
-                        echo "Adaptando Service YAML para compatibilidad con AWS ELB..."
-                        sh "sed -i '/sessionAffinity:/d' k8s-aws/service-aws.yaml"
-                        sh "sed -i '/sessionAffinityConfig:/d' k8s-aws/service-aws.yaml"
-                        sh "sed -i '/clientIP:/d' k8s-aws/service-aws.yaml"
-                        sh "sed -i '/timeoutSeconds:/d' k8s-aws/service-aws.yaml"
-                        // ---------------------------------------------------------
-                        
                         // Paso 1: Desplegar PostgreSQL y Servicio primero
                         echo "Paso 1/3: Desplegando PostgreSQL y Servicios..."
                         sh "kubectl apply -f k8s-aws/postgres.yaml -f k8s-aws/service-aws.yaml"

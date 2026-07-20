@@ -6,9 +6,14 @@ metadata:
   labels:
     app: odoo
   annotations:
-    # Estas dos líneas activan la "Sticky Session" en el LoadBalancer de AWS
+    # Obligamos a AWS ELB a usar HTTP y guardar la sesión en una Cookie por 24h
     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
-    service.beta.kubernetes.io/aws-load-balancer-cookie-expiration: "3600"
+    service.beta.kubernetes.io/aws-load-balancer-cookie-expiration: "86400"
+    # Le indicamos exactamente cómo verificar que Odoo no está colgado
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-protocol: "http"
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-path: "/web/health"
+    # Balanceo entre múltiples zonas de disponibilidad
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
 spec:
   type: LoadBalancer
   selector:
