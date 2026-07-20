@@ -142,7 +142,7 @@ pipeline {
                         aws(credentialsId: 'aws-credentials-id'),
                         string(credentialsId: 'aws-session-token', variable: 'AWS_SESSION_TOKEN')
                     ]) {
-                        eecho "Configurando contexto de kubectl para AWS EKS..."
+                        echo "Configurando contexto de kubectl para AWS EKS..."
                         sh "aws eks update-kubeconfig --region ${env.AWS_REGION} --name ${env.EKS_CLUSTER}"
                         
                         echo "Inyectando imagen de ECR y desplegando en AWS..."
