@@ -153,7 +153,7 @@ pipeline {
                         
                         // Paso 1: Desplegar PostgreSQL y Servicio primero
                         echo "Paso 1/3: Desplegando PostgreSQL y Servicios..."
-                        sh "kubectl apply -f k8s-aws/postgres.yaml -f k8s-aws/service-aws.yaml"
+                        sh "kubectl apply -f k8s-aws/postgres.yaml -f k8s-aws/service.yaml"
                         sh "kubectl rollout status deployment/postgres-deployment --timeout=120s"
                         
                         // Paso 2: Ejecutar Job de inicialización de BD y esperar a que termine
@@ -198,7 +198,7 @@ pipeline {
                         
                         // Paso 1: Desplegar PostgreSQL y Servicio primero
                         echo "Paso 1/3: Desplegando PostgreSQL y Servicios..."
-                        sh "kubectl apply -f k8s-azure/postgres.yaml -f k8s-azure/service-azure.yaml"
+                        sh "kubectl apply -f k8s-azure/postgres.yaml -f k8s-azure/service.yaml"
                         sh "kubectl rollout status deployment/postgres-deployment --timeout=120s"
                         
                         // Paso 2: Ejecutar Job de inicialización de BD y esperar a que termine
