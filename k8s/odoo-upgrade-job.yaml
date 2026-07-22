@@ -11,7 +11,20 @@ spec:
         command: ["/bin/bash", "-c"]
         args: 
           - |
-            /custom-entrypoint.sh odoo -d odoo_produccion -i web -u all --stop-after-init
+            /custom-entrypoint.sh odoo -d odoo_produccion -i web -u all --stop-after-init && \
+            echo "Actualizando contraseña del usuario admin..." && \
+            python3 <<'PYEOF'
+            import os, psycopg2
+            from passlib.context import CryptContext
+            ctx = CryptContext(schemes=['pbkdf2_sha512', 'plaintext'], deprecated=['plaintext'])
+            hashed = ctx.hash(os.environ['ADMIN_PASSWORD'])
+            conn = psycopg2.connect(host=os.environ['DB_HOST'], user=os.environ['DB_USER'], password=os.environ['DB_PASSWORD'], dbname=os.environ['DB_NAME'])
+            cur = conn.cursor()
+            cur.execute("UPDATE res_users SET password=%s WHERE login='admin'", (hashed,))
+            conn.commit()
+            conn.close()
+            print('Contraseña del admin actualizada exitosamente.')
+            PYEOF
         env:
         - name: DB_HOST
           valueFrom: { secretKeyRef: { name: odoo-db-secrets, key: db_host } }

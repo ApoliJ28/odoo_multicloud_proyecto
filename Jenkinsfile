@@ -151,9 +151,47 @@ pipeline {
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/deployment.yaml"
                         sh "sed -i 's|REPLACE_IMAGE_TAG|${env.AWS_ECR_REPO}:${IMAGE_TAG}|g' k8s-aws/odoo-upgrade-job.yaml"
                         
+                        // Paso 0: Instalar AWS Load Balancer Controller (requerido en EKS para type: LoadBalancer)
+                        echo "Paso 0/3: Verificando AWS Load Balancer Controller..."
+                        sh """
+                            if ! kubectl get deployment -n kube-system aws-load-balancer-controller --no-headers 2>/dev/null | grep -q aws-load-balancer-controller; then
+                                echo "Instalando AWS Load Balancer Controller..."
+                                
+                                # 1. Instalar cert-manager (prerequisito para webhooks del controlador)
+                                kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.7/cert-manager.yaml
+                                echo "Esperando a que cert-manager esté listo..."
+                                kubectl wait --for=condition=Available deployment --all -n cert-manager --timeout=180s
+                                
+                                # 2. Descargar manifiesto del AWS Load Balancer Controller
+                                curl -Lo /tmp/v2_7_2_full.yaml https://github.com/kubernetes-sigs/aws-load-balancer-controller/releases/download/v2.7.2/v2_7_2_full.yaml
+                                
+                                # 3. Configurar el nombre del clúster en el manifiesto
+                                sed -i 's|your-cluster-name|${env.EKS_CLUSTER}|g' /tmp/v2_7_2_full.yaml
+                                
+                                # 4. Eliminar la anotación de IRSA (usamos el rol del nodo LabRole)
+                                sed -i '/eks.amazonaws.com\\/role-arn/d' /tmp/v2_7_2_full.yaml
+                                
+                                # 5. Aplicar
+                                kubectl apply -f /tmp/v2_7_2_full.yaml
+                                echo "Esperando a que el controlador esté listo..."
+                                kubectl wait --for=condition=Available deployment/aws-load-balancer-controller -n kube-system --timeout=180s
+                                
+                                echo "AWS Load Balancer Controller instalado exitosamente."
+                            else
+                                echo "AWS Load Balancer Controller ya está instalado."
+                            fi
+                        """
+                        
                         // Paso 1: Desplegar PostgreSQL y Servicio primero
                         echo "Paso 1/3: Desplegando PostgreSQL y Servicios..."
                         sh "kubectl apply -f k8s-aws/postgres.yaml -f k8s-aws/service.yaml"
+                        // Inyectar anotaciones NLB para que el AWS Load Balancer Controller cree un Network Load Balancer
+                        sh """
+                            kubectl annotate svc odoo-service --overwrite \
+                                service.beta.kubernetes.io/aws-load-balancer-type=external \
+                                service.beta.kubernetes.io/aws-load-balancer-nlb-target-type=ip \
+                                service.beta.kubernetes.io/aws-load-balancer-scheme=internet-facing
+                        """
                         sh "kubectl rollout status deployment/postgres-deployment --timeout=120s"
                         
                         // Paso 2: Ejecutar Job de inicialización de BD y esperar a que termine
