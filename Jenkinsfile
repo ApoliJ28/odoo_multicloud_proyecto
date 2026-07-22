@@ -168,6 +168,10 @@ pipeline {
                                 # 3. Configurar el nombre del clúster en el manifiesto
                                 sed -i 's|your-cluster-name|${env.EKS_CLUSTER}|g' /tmp/v2_7_2_full.yaml
                                 
+                                # Inyectar la región y el VPC ID para evitar el error de EC2Metadata (IMDSv2)
+                                VPC_ID=\$(aws eks describe-cluster --name ${env.EKS_CLUSTER} --region ${env.AWS_REGION} --query "cluster.resourcesVpcConfig.vpcId" --output text)
+                                sed -i "/--cluster-name=${env.EKS_CLUSTER}/a \\        - --aws-region=${env.AWS_REGION}\\n        - --aws-vpc-id=\$VPC_ID" /tmp/v2_7_2_full.yaml
+                                
                                 # 4. Eliminar la anotación de IRSA (usamos el rol del nodo LabRole)
                                 sed -i '/eks.amazonaws.com\\/role-arn/d' /tmp/v2_7_2_full.yaml
                                 
