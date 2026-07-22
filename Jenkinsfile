@@ -175,8 +175,15 @@ pipeline {
                                 # 4. Eliminar la anotación de IRSA (usamos el rol del nodo LabRole)
                                 sed -i '/eks.amazonaws.com\\/role-arn/d' /tmp/v2_7_2_full.yaml
                                 
-                                # 5. Aplicar
+                                # 5. Aplicar el manifiesto base
                                 kubectl apply -f /tmp/v2_7_2_full.yaml
+                                
+                                # 6. Inyectar credenciales explícitamente para evitar problemas con IMDSv2/NodeRoles en AWS Academy
+                                kubectl set env deployment/aws-load-balancer-controller -n kube-system \
+                                    AWS_ACCESS_KEY_ID=\$AWS_ACCESS_KEY_ID \
+                                    AWS_SECRET_ACCESS_KEY=\$AWS_SECRET_ACCESS_KEY \
+                                    AWS_SESSION_TOKEN=\$AWS_SESSION_TOKEN
+                                    
                                 echo "Esperando a que el controlador esté listo..."
                                 kubectl wait --for=condition=Available deployment/aws-load-balancer-controller -n kube-system --timeout=180s
                                 
