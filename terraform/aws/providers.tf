@@ -7,7 +7,7 @@ terraform {
     }
   }
   backend "s3" {
-    bucket         = "odoo-multicloud-terraform-state-aws-bucket-unir"
+    bucket         = "odoo-multicloud-terraform-state-aws-bucket-unir-devops"
     key            = "aws/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = true
@@ -19,7 +19,7 @@ provider "aws" {
   region = var.aws_region
   access_key = var.access_key
   secret_key = var.secret_key
-  token      = var.session_token
+  # token      = var.session_token solo se usa para aws academy
 
   default_tags {
     tags = {

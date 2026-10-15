@@ -20,9 +20,9 @@ echo -e "${BLUE}===================================================${NC}"
 # --------------------------------------------------
 echo -e "\n${BLUE}--> 0. Limpiando recursos en Kubernetes (Eliminando LoadBalancers para evitar bloqueos en Terraform)...${NC}"
 
-echo -e "${YELLOW}Limpiando recursos en Azure AKS...${NC}"
-kubectl config use-context odoo-azure-aks-cluster || true
-kubectl delete -f k8s/ --ignore-not-found=true || true
+# echo -e "${YELLOW}Limpiando recursos en Azure AKS...${NC}"
+# kubectl config use-context odoo-azure-aks-cluster || true
+# kubectl delete -f k8s/ --ignore-not-found=true || true
 
 echo -e "${YELLOW}Limpiando recursos en AWS EKS...${NC}"
 if command -v aws &> /dev/null; then
@@ -33,14 +33,14 @@ else
 fi
 
 
-# 1. Destrucción en Azure
-# --------------------------------------------------
-echo -e "\n${BLUE}--> 1. Destruyendo la infraestructura en Azure (AKS, ACR, Key Vault)...${NC}"
-cd terraform/azure
-terraform init
-# Se incluye el var-file para asegurar que lea las credenciales necesarias para desaprovisionar
-terraform destroy -auto-approve -var-file="terraform.tfvars"
-cd ../..
+# # 1. Destrucción en Azure
+# # --------------------------------------------------
+# echo -e "\n${BLUE}--> 1. Destruyendo la infraestructura en Azure (AKS, ACR, Key Vault)...${NC}"
+# cd terraform/azure
+# terraform init
+# # Se incluye el var-file para asegurar que lea las credenciales necesarias para desaprovisionar
+# terraform destroy -auto-approve -var-file="terraform.tfvars"
+# cd ../..
 
 # 2. Destrucción en AWS
 # --------------------------------------------------

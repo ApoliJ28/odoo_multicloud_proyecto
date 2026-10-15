@@ -17,9 +17,25 @@ echo -e "${BLUE}===================================================${NC}"
 echo -e "${BLUE}🚀 Iniciando el despliegue multicloud (AWS + AZURE)${NC}"
 echo -e "${BLUE}===================================================${NC}"
 
+BUCKET_NAME="odoo-multicloud-terraform-state-aws-bucket-unir-devops"
+AWS_REGION="us-east-1"
+
+echo -e "\n${BLUE}--> Verificando bucket S3 para el estado de Terraform...${NC}"
+# Se valida si el bucket existe. Al usar 'if', evitamos que 'set -e' aborte el script si da error 404.
+if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+    echo -e "${GREEN}✅ El bucket $BUCKET_NAME ya existe y está accesible.${NC}"
+else
+    echo -e "${YELLOW}⚠️ El bucket no existe. Creándolo automáticamente en $AWS_REGION...${NC}"
+    aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$AWS_REGION"
+
+    aws s3api put-bucket-versioning --bucket "$BUCKET_NAME" --versioning-configuration Status=Enabled
+    echo -e "${GREEN}✅ Bucket S3 creado y versionado exitosamente.${NC}"
+fi
+# ==========================================
+
 echo -e "\n${BLUE}--> 1. Levantando la infraestructura en AWS (EKS, ECR, Secrets)...${NC}"
 cd terraform/aws
-terraform init
+terraform init -reconfigure
 terraform apply -auto-approve 
 
 echo -e "\n${YELLOW}⚠️  Precaución: Limpiando llave SSH anterior (si existe)...${NC}"
@@ -38,7 +54,7 @@ cd ../../
 # Despliegue en Azure
 echo -e "\n${BLUE}--> 2. Levantando la infraestructura en Azure (AKS, ACR, Key Vault)...${NC}"
 cd terraform/azure
-terraform init
+terraform init -reconfigure
 terraform apply -auto-approve 
 
 # Regresamos a la raíz

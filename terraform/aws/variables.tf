@@ -26,10 +26,10 @@ variable "secret_key" {
     type        = string
 }
 
-variable "session_token" {
-    description = "AWS session token"
-    type        = string
-}
+# variable "session_token" {
+#     description = "AWS session token"
+#     type        = string
+# }
 
 variable "db_user" {
   description = "Usuario de la base de datos de Odoo"
