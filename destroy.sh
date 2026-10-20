@@ -34,13 +34,13 @@ fi
 
 
 # # 1. Destrucción en Azure
-# # --------------------------------------------------
-# echo -e "\n${BLUE}--> 1. Destruyendo la infraestructura en Azure (AKS, ACR, Key Vault)...${NC}"
-# cd terraform/azure
-# terraform init
-# # Se incluye el var-file para asegurar que lea las credenciales necesarias para desaprovisionar
-# terraform destroy -auto-approve -var-file="terraform.tfvars"
-# cd ../..
+# --------------------------------------------------
+echo -e "\n${BLUE}--> 1. Destruyendo la infraestructura en Azure (AKS, ACR, Key Vault)...${NC}"
+cd terraform/azure
+terraform init
+# Se incluye el var-file para asegurar que lea las credenciales necesarias para desaprovisionar
+terraform destroy -auto-approve -var-file="terraform.tfvars"
+cd ../..
 
 # 2. Destrucción en AWS
 # --------------------------------------------------
