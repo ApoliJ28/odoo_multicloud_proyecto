@@ -51,6 +51,8 @@ echo -e "${GREEN}✅ IP del Orquestador Central (AWS EC2) obtenida: $JENKINS_IP$
 # Regresamos a la raíz
 cd ../../
 
+#prueba despliegue comentario
+
 AZ_RG="odoostorageunir"
 AZ_SA="odoostorageunirtfe"
 AZ_CONTAINER="odoo-state"
