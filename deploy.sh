@@ -35,7 +35,7 @@ fi
 
 echo -e "\n${BLUE}--> 1. Levantando la infraestructura en AWS (EKS, ECR, Secrets)...${NC}"
 cd terraform/aws
-terraform init -reconfigure
+terraform init 
 terraform apply -auto-approve 
 
 echo -e "\n${YELLOW}⚠️  Precaución: Limpiando llave SSH anterior (si existe)...${NC}"
@@ -50,6 +50,42 @@ echo -e "${GREEN}✅ IP del Orquestador Central (AWS EC2) obtenida: $JENKINS_IP$
 
 # Regresamos a la raíz
 cd ../../
+
+AZ_RG="odoostorageunir"
+AZ_SA="odoostorageunirtfe"
+AZ_CONTAINER="odoo-state"
+AZ_LOCATION="eastus"
+
+echo -e "\n${BLUE}--> Verificando infraestructura para el estado de Terraform en Azure...${NC}"
+
+# Buscar si la Storage Account ya existe en CUALQUIER grupo de recursos
+EXISTING_RG=$(az storage account list --query "[?name=='$AZ_SA'].resourceGroup" -o tsv)
+
+if [ -n "$EXISTING_RG" ]; then
+    echo -e "${GREEN}✅ ¡Cuenta manual detectada! La Storage Account '$AZ_SA' ya existe en el Resource Group '$EXISTING_RG'.${NC}"
+    AZ_RG="$EXISTING_RG" # Reutilizamos el RG donde ya la tienes creada
+else
+    echo -e "${YELLOW}⚠️ La Storage Account no existe en la suscripción. Creándola desde cero...${NC}"
+    # 1. Verificar/Crear Resource Group
+    if az group show --name "$AZ_RG" &>/dev/null; then
+        echo -e "${GREEN}✅ El Resource Group $AZ_RG ya existe.${NC}"
+    else
+        echo -e "${YELLOW}⚠️ Creando Resource Group en $AZ_LOCATION...${NC}"
+        az group create --name "$AZ_RG" --location "$AZ_LOCATION" --output none
+    fi
+    # 2. Crear Storage Account
+    az storage account create --name "$AZ_SA" --resource-group "$AZ_RG" --sku Standard_LRS --encryption-services blob --output none
+fi
+
+# 3. Verificar/Crear Contenedor (Dentro de la cuenta que encontró o creó)
+if az storage container show --name "$AZ_CONTAINER" --account-name "$AZ_SA" &>/dev/null; then
+    echo -e "${GREEN}✅ El contenedor $AZ_CONTAINER ya existe y está listo para usarse.${NC}"
+else
+    echo -e "${YELLOW}⚠️ El contenedor no existe. Creándolo adentro de tu cuenta...${NC}"
+    az storage container create --name "$AZ_CONTAINER" --account-name "$AZ_SA" --output none
+    echo -e "${GREEN}✅ Infraestructura de estado en Azure lista.${NC}"
+fi
+# ==========================================
 
 # Despliegue en Azure
 echo -e "\n${BLUE}--> 2. Levantando la infraestructura en Azure (AKS, ACR, Key Vault)...${NC}"
