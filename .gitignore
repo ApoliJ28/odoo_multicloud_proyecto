@@ -10,5 +10,3 @@ jenkins_key.pem
 inventory.ini
 jenkins_github_key
 jenkins_github_key.pub
-
-infra.env
