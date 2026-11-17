@@ -1,6 +1,6 @@
 resource "azurerm_container_registry" "acr" {
   # El nombre de ACR debe ser globalmente único y sin caracteres especiales
-  name                = "odooappacr" 
+  name                = "odooappacr2026" 
   resource_group_name = var.resource_group_name
   location            = var.location
   sku                 = "Standard"
@@ -9,7 +9,7 @@ resource "azurerm_container_registry" "acr" {
 
 resource "azurerm_key_vault" "kv" {
   # El nombre de Key Vault debe ser globalmente único
-  name                        = "odoo-kv-unir-proyecto" 
+  name                        = "odoo-kv-unir-proy2026" 
   location                    = var.location
   resource_group_name         = var.resource_group_name
   enabled_for_disk_encryption = true

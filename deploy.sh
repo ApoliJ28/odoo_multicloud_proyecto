@@ -53,8 +53,8 @@ cd ../../
 
 #prueba despliegue comentario
 
-AZ_RG="odoostorageunir"
-AZ_SA="odoostorageunirtfe"
+AZ_RG="odoostorageunir2026"
+AZ_SA="odoostorageunirtfe2026"
 AZ_CONTAINER="odoo-state"
 AZ_LOCATION="eastus"
 
