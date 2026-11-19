@@ -73,7 +73,7 @@ pipeline {
                         """
                     }
 
-                    // 2. SEGUNDO: Aplicar secretos en Azure (con credenciales Azure)
+                    // 2. SEGUNDO: Aplicar secretos en Azure (con credenciales Azure).
                     withCredentials([
                         azureServicePrincipal('azure-credentials-id'),
                         string(credentialsId: secretCreds.dbHost, variable: 'DB_HOST'),
